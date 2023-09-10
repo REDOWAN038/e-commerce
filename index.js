@@ -1,8 +1,22 @@
 const express = require("express")
-const app = express()
 const connectDB = require("./config/db.js")
-const dotenv = require("dotenv").config()
-const PORT = process.env.PORT || 5000
+const dotenv = require("dotenv")
+const authRoutes = require("./routes/userRoutes")
+
+//configure env
+dotenv.config()
+
+//rest object
+const app = express()
+
+// middlewares
+app.use(express.json())
+
+// routes
+app.use("/api/v1/user", authRoutes)
+
+// port
+const PORT = process.env.PORT || 8080
 
 app.listen(PORT, () => {
   try {
