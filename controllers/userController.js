@@ -6,6 +6,28 @@ const { hashPassword, comparePassword } = require("../helpers/authHelper")
 const createUser = async (req, res) => {
   try {
     const { firstName, lastName, email, mobile, password } = req.body
+
+    //validations
+    if (!firstName) {
+      return res.send({ message: "first name is required" })
+    }
+
+    if (!lastName) {
+      return res.send({ message: "last name is required" })
+    }
+
+    if (!email) {
+      return res.send({ message: "email is required" })
+    }
+
+    if (!password) {
+      return res.send({ message: "password is required" })
+    }
+
+    if (!mobile) {
+      return res.send({ message: "phone is required" })
+    }
+
     const findUser = await userModel.findOne({ email })
 
     if (findUser) {
@@ -96,6 +118,38 @@ const loginUser = async (req, res) => {
   }
 }
 
+//update user
+const updateUserController = async (req, res) => {
+  try {
+    const { firstName, lastName, password, mobile } = req.body
+    const user = await userModel.findById(req.user._id)
+
+    const hashedPassword = password ? await hashPassword(password) : undefined
+    const updatedUser = await userModel.findByIdAndUpdate(
+      req.user._id,
+      {
+        firstName: firstName || user?.firstName,
+        lastName: lastName || user?.lastName,
+        password: hashedPassword || user?.password,
+        mobile: mobile || user?.mobile,
+      },
+      { new: true }
+    )
+    res.status(200).send({
+      success: true,
+      message: "User Profile Updated SUccessfully",
+      updatedUser,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(400).send({
+      success: false,
+      message: "Error WHile Update profile",
+      error,
+    })
+  }
+}
+
 //get all users
 const getAllUsersController = async (req, res) => {
   try {
@@ -116,8 +170,144 @@ const getAllUsersController = async (req, res) => {
   }
 }
 
+// get single user
+const getSingleUserController = async (req, res) => {
+  try {
+    //const { id } = req.params
+    const user = await userModel.findById(req.user._id)
+
+    if (!user) {
+      return res.status(404).send({
+        success: false,
+        message: "not registered",
+      })
+    }
+
+    res.status(200).send({
+      success: true,
+      message: "single user info",
+      user,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      error,
+      message: "Error while getting single user",
+    })
+  }
+}
+
+//delete user
+const deleteUserController = async (req, res) => {
+  try {
+    //const { id } = req.params
+
+    // Find the user to be deleted
+    const user = await userModel.findById(req.user._id)
+
+    if (!user) {
+      return res
+        .status(404)
+        .send({ success: false, message: "user not registered" })
+    }
+
+    // Delete the user
+    await userModel.findByIdAndDelete(req.user._id)
+
+    res.status(200).send({
+      success: true,
+      message: "user deleted",
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      error,
+      message: "Error while deleting user",
+    })
+  }
+}
+
+// block user
+const blockUserController = async (req, res) => {
+  try {
+    const { id } = req.params
+    const user = await userModel.findById(id)
+
+    if (!user) {
+      return res.status(404).send({
+        success: false,
+        message: "not registered",
+      })
+    }
+
+    const blockUser = await userModel.findByIdAndUpdate(
+      id,
+      {
+        isBlocked: true,
+      },
+      { new: true }
+    )
+
+    res.status(200).send({
+      success: true,
+      message: "User Blocked SUccessfully",
+      blockUser,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      error,
+      message: "Error while blocking user",
+    })
+  }
+}
+
+// unblock user
+const unblockUserController = async (req, res) => {
+  try {
+    const { id } = req.params
+    const user = await userModel.findById(id)
+
+    if (!user) {
+      return res.status(404).send({
+        success: false,
+        message: "not registered",
+      })
+    }
+
+    const unblockUser = await userModel.findByIdAndUpdate(
+      id,
+      {
+        isBlocked: false,
+      },
+      { new: true }
+    )
+
+    res.status(200).send({
+      success: true,
+      message: "User Unblocked SUccessfully",
+      unblockUser,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      error,
+      message: "Error while unblocking user",
+    })
+  }
+}
+
 module.exports = {
   createUser,
   loginUser,
   getAllUsersController,
+  getSingleUserController,
+  deleteUserController,
+  updateUserController,
+  blockUserController,
+  unblockUserController,
 }
