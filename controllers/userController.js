@@ -1,6 +1,9 @@
 const userModel = require("../models/userModel")
 const JWT = require("jsonwebtoken")
 const { hashPassword, comparePassword } = require("../helpers/authHelper")
+const validateId = require("../utils/validateId")
+const { refreshToken } = require("../config/refreshToken")
+const { generateToken } = require("../config/generateToken")
 
 // register a user
 const createUser = async (req, res) => {
@@ -91,10 +94,21 @@ const loginUser = async (req, res) => {
     }
 
     //token
-    const token = await JWT.sign({ _id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    })
+    const token = await generateToken(user?._id)
 
+    // refresh token
+    const rToken = await refreshToken(user?._id)
+
+    const updateUser = await userModel.findByIdAndUpdate(
+      user?._id,
+      { refreshToken: rToken },
+      { new: true }
+    )
+
+    res.cookie("refreshToken", rToken, {
+      httpOnly: true,
+      maxAge: 72 * 60 * 60 * 1000,
+    })
     res.status(200).send({
       success: true,
       message: "login successful",
@@ -118,10 +132,70 @@ const loginUser = async (req, res) => {
   }
 }
 
+// handle refresh token
+const handleRefreshToken = async (req, res) => {
+  try {
+    const cookie = req.cookies
+    if (!cookie?.refreshToken) {
+      return res.status(404).send({
+        success: false,
+        message: "no refresh token",
+      })
+    }
+
+    const rToken = cookie?.refreshToken
+    const user = await userModel.findOne({ refreshToken: rToken })
+
+    if (!user) {
+      return res.status(404).send({
+        success: false,
+        message: "no user have this refresh token",
+      })
+    }
+
+    const decode = JWT.verify(rToken, process.env.JWT_SECRET)
+
+    console.log("user : ", user?._id)
+    console.log("decode : ", decode?.id)
+
+    if (user._id != decode.id) {
+      return res.status(400).send({
+        success: false,
+        message: "something went wrong in refresh token",
+      })
+    }
+
+    const token = await generateToken(user?._id)
+
+    res.status(200).send({
+      success: true,
+      message: "refresh token validated",
+      user: {
+        id: user?._id,
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+        email: user?.email,
+        mobile: user?.mobile,
+        role: user?.role,
+      },
+      token,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in handle refresh token",
+      error,
+    })
+  }
+}
+
 //update user
 const updateUserController = async (req, res) => {
   try {
     const { firstName, lastName, password, mobile } = req.body
+    validateId(req.user._id)
+
     const user = await userModel.findById(req.user._id)
 
     const hashedPassword = password ? await hashPassword(password) : undefined
@@ -174,14 +248,15 @@ const getAllUsersController = async (req, res) => {
 const getSingleUserController = async (req, res) => {
   try {
     //const { id } = req.params
+    validateId(req.user._id)
     const user = await userModel.findById(req.user._id)
 
-    if (!user) {
-      return res.status(404).send({
-        success: false,
-        message: "not registered",
-      })
-    }
+    // if (!user) {
+    //   return res.status(404).send({
+    //     success: false,
+    //     message: "not registered",
+    //   })
+    // }
 
     res.status(200).send({
       success: true,
@@ -203,14 +278,15 @@ const deleteUserController = async (req, res) => {
   try {
     //const { id } = req.params
 
+    validateId(req.user._id)
     // Find the user to be deleted
     const user = await userModel.findById(req.user._id)
 
-    if (!user) {
-      return res
-        .status(404)
-        .send({ success: false, message: "user not registered" })
-    }
+    // if (!user) {
+    //   return res
+    //     .status(404)
+    //     .send({ success: false, message: "user not registered" })
+    // }
 
     // Delete the user
     await userModel.findByIdAndDelete(req.user._id)
@@ -233,14 +309,15 @@ const deleteUserController = async (req, res) => {
 const blockUserController = async (req, res) => {
   try {
     const { id } = req.params
+    validateId(req.user._id)
     const user = await userModel.findById(id)
 
-    if (!user) {
-      return res.status(404).send({
-        success: false,
-        message: "not registered",
-      })
-    }
+    // if (!user) {
+    //   return res.status(404).send({
+    //     success: false,
+    //     message: "not registered",
+    //   })
+    // }
 
     const blockUser = await userModel.findByIdAndUpdate(
       id,
@@ -310,4 +387,5 @@ module.exports = {
   updateUserController,
   blockUserController,
   unblockUserController,
+  handleRefreshToken,
 }

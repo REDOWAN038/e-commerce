@@ -8,6 +8,7 @@ const {
   updateUserController,
   blockUserController,
   unblockUserController,
+  handleRefreshToken,
 } = require("../controllers/userController")
 const { requireSignIn, isAdmin } = require("../middlewares/authMiddleware")
 //const { requireSignIn } = require("../middlewares/authMiddleware")
@@ -18,6 +19,9 @@ router.post("/register", createUser)
 
 // login user
 router.post("/login", loginUser)
+
+// refresh token
+router.get("/refresh", handleRefreshToken)
 
 // get all users
 router.get("/all-users", getAllUsersController)

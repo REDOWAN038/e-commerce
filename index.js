@@ -1,6 +1,7 @@
 const express = require("express")
 const connectDB = require("./config/db.js")
 const dotenv = require("dotenv")
+const cookieParser = require("cookie-parser")
 const authRoutes = require("./routes/userRoutes")
 
 //configure env
@@ -11,6 +12,7 @@ const app = express()
 
 // middlewares
 app.use(express.json())
+app.use(cookieParser())
 
 // routes
 app.use("/api/v1/user", authRoutes)
