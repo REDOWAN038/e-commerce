@@ -42,6 +42,26 @@ const userSchema = new mongoose.Schema(
       enum: [0, 1], // 0 --> user, 1-->admin
       default: 0,
     },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+    address: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Address",
+      },
+    ],
+    wishlist: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+      },
+    ],
+    cart: {
+      type: Array,
+      default: [],
+    },
   },
   { timestamps: true }
 )
