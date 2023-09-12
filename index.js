@@ -1,8 +1,11 @@
 const express = require("express")
 const connectDB = require("./config/db.js")
 const dotenv = require("dotenv")
+const morgan = require("morgan")
+const cors = require("cors")
 const cookieParser = require("cookie-parser")
 const authRoutes = require("./routes/userRoutes")
+const productRoutes = require("./routes/productRoutes")
 
 //configure env
 dotenv.config()
@@ -11,11 +14,14 @@ dotenv.config()
 const app = express()
 
 // middlewares
+app.use(cors())
 app.use(express.json())
+app.use(morgan("dev"))
 app.use(cookieParser())
 
 // routes
 app.use("/api/v1/user", authRoutes)
+app.use("/api/v1/product", productRoutes)
 
 // port
 const PORT = process.env.PORT || 8080
