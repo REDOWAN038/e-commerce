@@ -190,6 +190,56 @@ const handleRefreshToken = async (req, res) => {
   }
 }
 
+// logout
+const handleLogoutController = async (req, res) => {
+  try {
+    const cookie = req.cookies
+
+    if (!cookie?.refreshToken) {
+      return res.status(404).send({
+        success: false,
+        message: "no refresh token",
+      })
+    }
+
+    const rToken = cookie?.refreshToken
+    const user = await userModel.findOne({ refreshToken: rToken })
+
+    if (!user) {
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: true,
+      })
+      return res.status(204).send({
+        success: false,
+        message: "204 forbidden",
+      })
+    }
+
+    const filter = { refreshToken: rToken }
+    await userModel.findOneAndUpdate(filter, {
+      refreshToken: "",
+    })
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: true,
+    })
+
+    res.status(200).send({
+      success: true,
+      message: "logout successful",
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error while loging out",
+      error,
+    })
+  }
+}
+
 //update user
 const updateUserController = async (req, res) => {
   try {
@@ -388,4 +438,5 @@ module.exports = {
   blockUserController,
   unblockUserController,
   handleRefreshToken,
+  handleLogoutController,
 }
