@@ -73,7 +73,6 @@ const deleteProductController = async (req, res) => {
 // fetch single product
 const fetchSingleProduct = async (req, res) => {
   try {
-    console.log("noooo")
     const { id } = req.params
     const product = await productModel.findById(id)
 
@@ -102,9 +101,50 @@ const fetchSingleProduct = async (req, res) => {
 //fetch all products
 const fetchAllProducts = async (req, res) => {
   try {
-    console.log("yeah")
-    const products = await productModel.find({})
+    // Filtering
+    const queryObj = { ...req.query }
+    const excludeFields = ["page", "sort", "limit", "fields"]
+    excludeFields.forEach((el) => delete queryObj[el])
+    let queryStr = JSON.stringify(queryObj)
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`)
 
+    let query = productModel.find(JSON.parse(queryStr))
+
+    // Sorting
+
+    if (req.query.sort) {
+      const sortBy = req.query.sort.split(",").join(" ")
+      query = query.sort(sortBy)
+    } else {
+      query = query.sort("-createdAt")
+    }
+
+    // limiting the fields
+
+    if (req.query.fields) {
+      const fields = req.query.fields.split(",").join(" ")
+      query = query.select(fields)
+    } else {
+      query = query.select("-__v")
+    }
+
+    // pagination
+
+    const page = req.query.page
+    const limit = req.query.limit
+    const skip = (page - 1) * limit
+    query = query.skip(skip).limit(limit)
+    if (req.query.page) {
+      const productCount = await productModel.countDocuments()
+      if (skip >= productCount) {
+        return res.status(404).send({
+          success: true,
+          message: "page does not exists",
+        })
+      }
+    }
+
+    const products = await query
     res.status(200).send({
       success: true,
       message: "all products",
