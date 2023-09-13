@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt")
+const crypto = require("crypto")
 
 const hashPassword = async (password) => {
   try {
@@ -14,4 +15,9 @@ const comparePassword = async (password, hashedPassword) => {
   return bcrypt.compare(password, hashedPassword)
 }
 
-module.exports = { hashPassword, comparePassword }
+const passwordResetToken = async () => {
+  const resetToken = crypto.randomBytes(32).toString("hex")
+  return resetToken
+}
+
+module.exports = { hashPassword, comparePassword, passwordResetToken }

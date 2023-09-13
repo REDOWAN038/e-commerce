@@ -1,6 +1,13 @@
 const userModel = require("../models/userModel")
 const JWT = require("jsonwebtoken")
-const { hashPassword, comparePassword } = require("../helpers/authHelper")
+const crypto = require("crypto")
+const nodemailer = require("nodemailer")
+
+const {
+  hashPassword,
+  comparePassword,
+  passwordResetToken,
+} = require("../helpers/authHelper")
 const validateId = require("../utils/validateId")
 const { refreshToken } = require("../config/refreshToken")
 const { generateToken } = require("../config/generateToken")
@@ -244,13 +251,13 @@ const handleLogoutController = async (req, res) => {
 const updateUserController = async (req, res) => {
   try {
     const { firstName, lastName, password, mobile } = req.body
-    validateId(req.user._id)
+    validateId(req.user.id)
 
-    const user = await userModel.findById(req.user._id)
+    const user = await userModel.findById(req.user.id)
 
     const hashedPassword = password ? await hashPassword(password) : undefined
     const updatedUser = await userModel.findByIdAndUpdate(
-      req.user._id,
+      req.user.id,
       {
         firstName: firstName || user?.firstName,
         lastName: lastName || user?.lastName,
@@ -298,8 +305,8 @@ const getAllUsersController = async (req, res) => {
 const getSingleUserController = async (req, res) => {
   try {
     //const { id } = req.params
-    validateId(req.user._id)
-    const user = await userModel.findById(req.user._id)
+    validateId(req.user.id)
+    const user = await userModel.findById(req.user.id)
 
     // if (!user) {
     //   return res.status(404).send({
@@ -328,9 +335,9 @@ const deleteUserController = async (req, res) => {
   try {
     //const { id } = req.params
 
-    validateId(req.user._id)
+    validateId(req.user.id)
     // Find the user to be deleted
-    const user = await userModel.findById(req.user._id)
+    const user = await userModel.findById(req.user.id)
 
     // if (!user) {
     //   return res
@@ -339,7 +346,7 @@ const deleteUserController = async (req, res) => {
     // }
 
     // Delete the user
-    await userModel.findByIdAndDelete(req.user._id)
+    await userModel.findByIdAndDelete(req.user.id)
 
     res.status(200).send({
       success: true,
@@ -359,7 +366,7 @@ const deleteUserController = async (req, res) => {
 const blockUserController = async (req, res) => {
   try {
     const { id } = req.params
-    validateId(req.user._id)
+    validateId(req.user.id)
     const user = await userModel.findById(id)
 
     // if (!user) {
@@ -428,6 +435,138 @@ const unblockUserController = async (req, res) => {
   }
 }
 
+const updatePasswordController = async (req, res) => {
+  //const { _id } = req.user
+  const { password } = req.body
+  const user = await userModel.findById(req.user.id)
+
+  if (!user) {
+    return res.status(404).send({
+      success: false,
+      message: "not registered",
+    })
+  }
+
+  if (password) {
+    const hashedPassword = await hashPassword(password)
+    const resetToken = await passwordResetToken()
+    user.passwordResetToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex")
+    user.password = hashedPassword
+    user.passwordResetExpires = Date.now() + 30 * 60 * 1000
+    const updatedPasswordUser = await user.save()
+
+    res.status(200).send({
+      success: true,
+      message: "password updated successfully",
+      updatedPasswordUser,
+    })
+  } else {
+    res.status(404).send({
+      success: false,
+      message: "please provide password to update",
+    })
+  }
+}
+
+const forgotPasswordController = async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email) {
+      return res.status(404).send({
+        success: false,
+        message: "please provide your email",
+      })
+    }
+
+    const user = await userModel.findOne({ email })
+    if (!user) {
+      return res.status(404).send({
+        success: false,
+        message: "not registered",
+      })
+    }
+
+    const resetToken = await passwordResetToken()
+    user.passwordResetToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex")
+    user.passwordResetExpires = Date.now() + 30 * 60 * 1000
+    await user.save()
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    })
+
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_USER, // sender address
+      to: email, // list of receivers
+      subject: "Reset Your Password",
+      text: `http://localhost:8080/api/v1/user/reset-password/${resetToken}`,
+    })
+
+    res.status(200).send({
+      success: true,
+      resetToken,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(400).send({
+      success: false,
+      message: "Error in forgot password route",
+      error,
+    })
+  }
+}
+
+const resetPasswordController = async (req, res) => {
+  try {
+    const { token } = req.params
+    const { password } = req.body
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex")
+
+    const user = await userModel.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() },
+    })
+
+    if (!user) {
+      return res.status(200).send({
+        success: false,
+        message: "token expired... try again",
+      })
+    }
+
+    user.password = await hashPassword(password)
+    user.passwordResetToken = undefined
+    user.passwordResetExpires = undefined
+    await user.save()
+
+    res.status(200).send({
+      success: true,
+      message: "Password Reset SUccessful",
+      user,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(400).send({
+      success: false,
+      message: "Error WHile Resetting Password",
+      error,
+    })
+  }
+}
+
 module.exports = {
   createUser,
   loginUser,
@@ -439,4 +578,7 @@ module.exports = {
   unblockUserController,
   handleRefreshToken,
   handleLogoutController,
+  updatePasswordController,
+  forgotPasswordController,
+  resetPasswordController,
 }

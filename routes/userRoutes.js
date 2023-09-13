@@ -10,6 +10,9 @@ const {
   unblockUserController,
   handleRefreshToken,
   handleLogoutController,
+  updatePasswordController,
+  forgotPasswordController,
+  resetPasswordController,
 } = require("../controllers/userController")
 const { requireSignIn, isAdmin } = require("../middlewares/authMiddleware")
 //const { requireSignIn } = require("../middlewares/authMiddleware")
@@ -38,6 +41,15 @@ router.delete("/delete-user", requireSignIn, deleteUserController)
 
 // update user
 router.put("/update-user", requireSignIn, updateUserController)
+
+// update password
+router.put("/update-password", requireSignIn, updatePasswordController)
+
+// forgot password
+router.post("/forgot-password", forgotPasswordController)
+
+// reset password
+router.put("/reset-password/:token", resetPasswordController)
 
 // block user
 router.put("/block-user/:id", requireSignIn, isAdmin, blockUserController)
