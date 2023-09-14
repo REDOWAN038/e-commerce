@@ -6,6 +6,7 @@ const cors = require("cors")
 const cookieParser = require("cookie-parser")
 const authRoutes = require("./routes/userRoutes")
 const productRoutes = require("./routes/productRoutes")
+const blogRoutes = require("./routes/blogRoutes")
 
 //configure env
 dotenv.config()
@@ -22,6 +23,7 @@ app.use(cookieParser())
 // routes
 app.use("/api/v1/user", authRoutes)
 app.use("/api/v1/product", productRoutes)
+app.use("/api/v1/blog", blogRoutes)
 
 // port
 const PORT = process.env.PORT || 8080
