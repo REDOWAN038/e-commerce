@@ -5,6 +5,8 @@ const {
   fetchAllProducts,
   updateProductController,
   deleteProductController,
+  addToWishlistController,
+  ratingProductController,
 } = require("../controllers/productController")
 const { requireSignIn, isAdmin } = require("../middlewares/authMiddleware")
 const router = express.Router()
@@ -17,6 +19,12 @@ router.get("/all-products", fetchAllProducts)
 
 // fetch single product
 router.get("/:id", fetchSingleProduct)
+
+// add to wishlist
+router.put("/wishlist", requireSignIn, addToWishlistController)
+
+// rating product
+router.put("/rating", requireSignIn, ratingProductController)
 
 // update product
 router.put("/:id", requireSignIn, isAdmin, updateProductController)

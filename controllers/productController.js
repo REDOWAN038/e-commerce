@@ -1,4 +1,5 @@
 const productModel = require("../models/productModel")
+const userModel = require("../models/userModel")
 const slugify = require("slugify")
 const validateId = require("../utils/validateId")
 
@@ -160,10 +161,139 @@ const fetchAllProducts = async (req, res) => {
   }
 }
 
+// add to wishlist
+const addToWishlistController = async (req, res) => {
+  const id = req.user.id
+  const { prodId } = req.body
+  try {
+    const user = await userModel.findById(id)
+    const product = await productModel.findById(prodId)
+    if (!product) {
+      return res.status(404).send({
+        success: false,
+        message: "product not found",
+      })
+    }
+    const alreadyadded = user.wishlist.find((id) => id.toString() === prodId)
+    if (alreadyadded) {
+      const user = await userModel.findByIdAndUpdate(
+        id,
+        {
+          $pull: { wishlist: prodId },
+        },
+        {
+          new: true,
+        }
+      )
+      res.status(200).send({
+        success: true,
+        message: "product removed from wishlist",
+        user,
+      })
+    } else {
+      const user = await userModel.findByIdAndUpdate(
+        id,
+        {
+          $push: { wishlist: prodId },
+        },
+        {
+          new: true,
+        }
+      )
+      res.status(200).send({
+        success: true,
+        message: "product added to wishlist",
+        user,
+      })
+    }
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in add to wishlist",
+      error,
+    })
+  }
+}
+
+// product rating
+const ratingProductController = async (req, res) => {
+  const id = req.user.id
+  const { star, comment, prodId } = req.body
+  try {
+    const product = await productModel.findById(prodId)
+    if (!product) {
+      return res.status(404).send({
+        success: false,
+        message: "product not found",
+      })
+    }
+    let alreadyRated = product.ratings.find(
+      (userId) => userId.postedby.toString() === id.toString()
+    )
+    if (alreadyRated) {
+      const updateRating = await productModel.updateOne(
+        {
+          ratings: { $elemMatch: alreadyRated },
+        },
+        {
+          $set: { "ratings.$.star": star, "ratings.$.comment": comment },
+        },
+        {
+          new: true,
+        }
+      )
+    } else {
+      const rateProduct = await productModel.findByIdAndUpdate(
+        prodId,
+        {
+          $push: {
+            ratings: {
+              star: star,
+              comment: comment,
+              postedby: id,
+            },
+          },
+        },
+        {
+          new: true,
+        }
+      )
+    }
+    const getallratings = await productModel.findById(prodId)
+    let totalRating = getallratings.ratings.length
+    let ratingsum = getallratings.ratings
+      .map((item) => item.star)
+      .reduce((prev, curr) => prev + curr, 0)
+    let actualRating = Math.round(ratingsum / totalRating)
+    let finalproduct = await productModel.findByIdAndUpdate(
+      prodId,
+      {
+        totalrating: actualRating,
+      },
+      { new: true }
+    )
+    res.status(200).send({
+      success: true,
+      message: "product rating",
+      finalproduct,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(404).send({
+      success: false,
+      message: "error in product rating",
+      error,
+    })
+  }
+}
+
 module.exports = {
   createProductController,
   fetchAllProducts,
   fetchSingleProduct,
   updateProductController,
   deleteProductController,
+  addToWishlistController,
+  ratingProductController,
 }
