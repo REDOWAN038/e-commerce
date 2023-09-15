@@ -7,6 +7,9 @@ const cookieParser = require("cookie-parser")
 const authRoutes = require("./routes/userRoutes")
 const productRoutes = require("./routes/productRoutes")
 const blogRoutes = require("./routes/blogRoutes")
+const productCategoryRoutes = require("./routes/productCategoryRoutes")
+const blogCategoryRoutes = require("./routes/blogCategoryRoutes")
+const brandRoutes = require("./routes/brandRoutes")
 
 //configure env
 dotenv.config()
@@ -24,6 +27,9 @@ app.use(cookieParser())
 app.use("/api/v1/user", authRoutes)
 app.use("/api/v1/product", productRoutes)
 app.use("/api/v1/blog", blogRoutes)
+app.use("/api/v1/product/category", productCategoryRoutes)
+app.use("/api/v1/blog/category", blogCategoryRoutes)
+app.use("/api/v1/brand", brandRoutes)
 
 // port
 const PORT = process.env.PORT || 8080
