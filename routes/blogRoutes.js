@@ -7,8 +7,10 @@ const {
   deleteBlogController,
   likeBlogController,
   dislikeBlogController,
+  uploadImages,
 } = require("../controllers/blogController")
 const { requireSignIn, isAdmin } = require("../middlewares/authMiddleware")
+const { blogImgResize, uploadPhoto } = require("../middlewares/uploadImage")
 const router = express.Router()
 
 // create blog
@@ -22,6 +24,16 @@ router.put("/dislike-blog", requireSignIn, dislikeBlogController)
 
 // updated blog
 router.put("/update-blog/:id", requireSignIn, isAdmin, updateBlogController)
+
+//upload images
+router.put(
+  "/upload-image/:id",
+  requireSignIn,
+  isAdmin,
+  uploadPhoto.array("images", 2),
+  blogImgResize,
+  uploadImages
+)
 
 // get blog
 router.get("/get-blog/:id", getBlogController)

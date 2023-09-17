@@ -42,11 +42,12 @@ const blogSchema = new mongoose.Schema(
       type: String,
       default: "Admin",
     },
-    image: {
-      type: String,
-      default:
-        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRA-wB8uBdMJxDmbng5s6vr__Nwsm_jDXeE7Gd6MpkB&s",
-    },
+    images: [],
+    // image: {
+    //   type: String,
+    //   default:
+    //     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRA-wB8uBdMJxDmbng5s6vr__Nwsm_jDXeE7Gd6MpkB&s",
+    // },
   },
   {
     toJSON: {
