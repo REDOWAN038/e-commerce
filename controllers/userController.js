@@ -1,4 +1,9 @@
 const userModel = require("../models/userModel")
+const cartModel = require("../models/cartModel")
+const productModel = require("../models/productModel")
+const couponModel = require("../models/couponModel")
+const orderModel = require("../models/orderModel")
+const uniqid = require("uniqid")
 const JWT = require("jsonwebtoken")
 const crypto = require("crypto")
 const nodemailer = require("nodemailer")
@@ -88,6 +93,79 @@ const loginUser = async (req, res) => {
       return res.status(404).send({
         success: false,
         message: "not registered",
+      })
+    }
+
+    const match = await comparePassword(password, user.password)
+
+    if (!match) {
+      return res.status(200).send({
+        success: false,
+        message: "incorrect password",
+      })
+    }
+
+    //token
+    const token = await generateToken(user?._id)
+
+    // refresh token
+    const rToken = await refreshToken(user?._id)
+
+    const updateUser = await userModel.findByIdAndUpdate(
+      user?._id,
+      { refreshToken: rToken },
+      { new: true }
+    )
+
+    res.cookie("refreshToken", rToken, {
+      httpOnly: true,
+      maxAge: 72 * 60 * 60 * 1000,
+    })
+    res.status(200).send({
+      success: true,
+      message: "login successful",
+      user: {
+        id: user?._id,
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+        email: user?.email,
+        mobile: user?.mobile,
+        role: user?.role,
+      },
+      token,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in login",
+      error,
+    })
+  }
+}
+// login admin
+const loginAdmin = async (req, res) => {
+  try {
+    const { email, password } = req.body
+    if (!email || !password) {
+      return res.status(404).send({
+        success: false,
+        message: "invalid user credentials",
+      })
+    }
+
+    const user = await userModel.findOne({ email })
+    if (!user) {
+      return res.status(404).send({
+        success: false,
+        message: "not registered",
+      })
+    }
+
+    if (user.role !== 1) {
+      return res.status(404).send({
+        success: false,
+        message: "not authorized",
       })
     }
 
@@ -276,6 +354,33 @@ const updateUserController = async (req, res) => {
     res.status(400).send({
       success: false,
       message: "Error WHile Update profile",
+      error,
+    })
+  }
+}
+
+//save address
+const saveAddressController = async (req, res) => {
+  try {
+    const { address } = req.body
+    validateId(req.user.id)
+    const updatedUser = await userModel.findByIdAndUpdate(
+      req.user.id,
+      {
+        address: address,
+      },
+      { new: true }
+    )
+    res.status(200).send({
+      success: true,
+      message: "User Address Updated SUccessfully",
+      updatedUser,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(400).send({
+      success: false,
+      message: "Error WHile Update Address",
       error,
     })
   }
@@ -567,6 +672,273 @@ const resetPasswordController = async (req, res) => {
   }
 }
 
+// get wishlist
+const getWishListController = async (req, res) => {
+  try {
+    const id = req.user.id
+    console.log(id)
+    const user = await userModel.findById(id).populate("wishlist")
+    res.status(200).send({
+      success: true,
+      message: "get wishlist",
+      user,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in get wishlist",
+      error,
+    })
+  }
+}
+
+// add to cart
+const addCartController = async (req, res) => {
+  try {
+    const { cart } = req.body
+    const id = req.user.id
+    validateId(id)
+    let products = []
+    const user = await userModel.findById(id)
+    // check if user already have product in cart
+    let alreadyExistCart = await cartModel.findOne({ orderby: user._id })
+    if (alreadyExistCart) {
+      alreadyExistCart.deleteOne()
+    }
+    for (let i = 0; i < cart.length; i++) {
+      let object = {}
+      object.product = cart[i]._id
+      object.count = cart[i].count
+      object.color = cart[i].color
+      let getPrice = await productModel
+        .findById(cart[i]._id)
+        .select("price")
+        .exec()
+      object.price = getPrice.price
+      products.push(object)
+    }
+    let cartTotal = 0
+    for (let i = 0; i < products.length; i++) {
+      cartTotal = cartTotal + products[i].price * products[i].count
+    }
+    let newCart = await new cartModel({
+      products,
+      cartTotal,
+      orderby: user?._id,
+    }).save()
+    res.status(200).send({
+      success: true,
+      message: "add to cart",
+      newCart,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in add to cart",
+      error,
+    })
+  }
+}
+
+// get user carts
+const getCartController = async (req, res) => {
+  try {
+    const cart = await cartModel
+      .findOne({ orderby: req.user.id })
+      .populate("products.product")
+    res.status(200).send({
+      success: true,
+      message: "user cart",
+      cart,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in getting cart",
+      error,
+    })
+  }
+}
+
+// empty cart
+const emptyCartController = async (req, res) => {
+  try {
+    const cart = await cartModel.findOneAndRemove({ orderby: req.user.id })
+    res.status(200).send({
+      success: true,
+      message: "empty cart",
+      cart,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in empty cart",
+      error,
+    })
+  }
+}
+
+//apply coupon
+const applyCouponController = async (req, res) => {
+  try {
+    const { coupon } = req.body
+    const id = req.user.id
+    const validCoupon = await couponModel.findOne({ name: coupon })
+    if (validCoupon === null) {
+      return res.status(404).send({
+        success: false,
+        message: "invalid coupon",
+      })
+    }
+
+    const user = await userModel.findById(id)
+    let { cartTotal } = await cartModel
+      .findOne({
+        orderby: user._id,
+      })
+      .populate("products.product")
+    let totalAfterDiscount = (
+      cartTotal -
+      (cartTotal * validCoupon.discount) / 100
+    ).toFixed(2)
+    await cartModel.findOneAndUpdate(
+      { orderby: user._id },
+      { totalAfterDiscount },
+      { new: true }
+    )
+    res.status(200).send({
+      success: true,
+      message: "apply coupon",
+      totalAfterDiscount,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in apply coupon",
+      error,
+    })
+  }
+}
+
+// create order
+const createOrderController = async (req, res) => {
+  try {
+    const { COD, couponApplied } = req.body
+    const id = req.user.id
+    validateId(id)
+    if (!COD) {
+      return res.status(500).send({
+        success: false,
+        message: "cod failed",
+      })
+    }
+
+    const user = await userModel.findById(id)
+    let userCart = await cartModel.findOne({ orderby: user._id })
+    let finalAmout = 0
+    if (couponApplied && userCart.totalAfterDiscount) {
+      finalAmout = userCart.totalAfterDiscount
+    } else {
+      finalAmout = userCart.cartTotal
+    }
+
+    let newOrder = await new orderModel({
+      products: userCart.products,
+      paymentIntent: {
+        id: uniqid(),
+        method: "COD",
+        amount: finalAmout,
+        status: "Cash on Delivery",
+        created: Date.now(),
+        currency: "usd",
+      },
+      orderby: user._id,
+      orderStatus: "Cash on Delivery",
+    }).save()
+    let update = userCart.products.map((item) => {
+      return {
+        updateOne: {
+          filter: { _id: item.product._id },
+          update: { $inc: { quantity: -item.count, sold: +item.count } },
+        },
+      }
+    })
+    const updated = await productModel.bulkWrite(update, {})
+    res.status(200).send({
+      success: true,
+      message: "create order successful",
+      updated,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in create order",
+      error,
+    })
+  }
+}
+
+// get order
+const getOrdersController = async (req, res) => {
+  try {
+    const userOrders = await orderModel
+      .findOne({ orderby: req.user.id })
+      .populate("products.product")
+      .populate("orderby")
+      .exec()
+    res.status(200).send({
+      success: true,
+      message: "get order",
+      userOrders,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in get order",
+      error,
+    })
+  }
+}
+
+const updateOrderStatusController = async (req, res) => {
+  try {
+    const { status } = req.body
+    const { id } = req.params
+    validateId(id)
+    const updateOrderStatus = await orderModel.findByIdAndUpdate(
+      id,
+      {
+        orderStatus: status,
+        paymentIntent: {
+          ...paymentIntent,
+          status: status,
+        },
+      },
+      { new: true }
+    )
+
+    res.status(200).send({
+      success: true,
+      message: "update order status",
+      updateOrderStatus,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).send({
+      success: false,
+      message: "error in update order status",
+      error,
+    })
+  }
+}
+
 module.exports = {
   createUser,
   loginUser,
@@ -581,4 +953,14 @@ module.exports = {
   updatePasswordController,
   forgotPasswordController,
   resetPasswordController,
+  loginAdmin,
+  getWishListController,
+  saveAddressController,
+  addCartController,
+  getCartController,
+  emptyCartController,
+  applyCouponController,
+  createOrderController,
+  getOrdersController,
+  updateOrderStatusController,
 }
