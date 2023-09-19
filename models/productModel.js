@@ -50,11 +50,13 @@ const productSchema = new mongoose.Schema(
     //     url: String,
     //   },
     // ],
-    color: {
-      type: String,
-      required: true,
-      //enum: ["Black", "Brown", "Red"],
-    },
+    // color: {
+    //   type: String,
+    //   required: true,
+    //enum: ["Black", "Brown", "Red"],
+    // },
+    color: [],
+    tags: [],
     ratings: [
       {
         star: Number,

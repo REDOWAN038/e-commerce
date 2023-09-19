@@ -915,10 +915,9 @@ const updateOrderStatusController = async (req, res) => {
     const updateOrderStatus = await orderModel.findByIdAndUpdate(
       id,
       {
-        orderStatus: status,
-        paymentIntent: {
-          ...paymentIntent,
-          status: status,
+        $set: {
+          orderStatus: status,
+          "paymentIntent.status": status,
         },
       },
       { new: true }

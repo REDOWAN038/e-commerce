@@ -11,6 +11,7 @@ const productCategoryRoutes = require("./routes/productCategoryRoutes")
 const blogCategoryRoutes = require("./routes/blogCategoryRoutes")
 const brandRoutes = require("./routes/brandRoutes")
 const couponRoutes = require("./routes/couponRoutes")
+const colorRoutes = require("./routes/colorRoutes")
 
 //configure env
 dotenv.config()
@@ -32,6 +33,7 @@ app.use("/api/v1/product/category", productCategoryRoutes)
 app.use("/api/v1/blog/category", blogCategoryRoutes)
 app.use("/api/v1/brand", brandRoutes)
 app.use("/api/v1/coupon", couponRoutes)
+app.use("/api/v1/color", colorRoutes)
 
 // port
 const PORT = process.env.PORT || 8080
