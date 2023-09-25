@@ -16,6 +16,16 @@ const router = express.Router()
 // create blog
 router.post("/create-blog", requireSignIn, isAdmin, createBlogController)
 
+//upload images
+router.put(
+  "/upload-image",
+  requireSignIn,
+  isAdmin,
+  uploadPhoto.array("images", 10),
+  blogImgResize,
+  uploadImages
+)
+
 // like blog
 router.put("/like-blog", requireSignIn, likeBlogController)
 
@@ -24,16 +34,6 @@ router.put("/dislike-blog", requireSignIn, dislikeBlogController)
 
 // updated blog
 router.put("/update-blog/:id", requireSignIn, isAdmin, updateBlogController)
-
-//upload images
-router.put(
-  "/upload-image/:id",
-  requireSignIn,
-  isAdmin,
-  uploadPhoto.array("images", 2),
-  blogImgResize,
-  uploadImages
-)
 
 // get blog
 router.get("/get-blog/:id", getBlogController)

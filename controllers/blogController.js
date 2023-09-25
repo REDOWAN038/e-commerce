@@ -2,7 +2,7 @@ const blogModel = require("../models/blogModel")
 const userModel = require("../models/userModel")
 const validateId = require("../utils/validateId")
 const fs = require("fs")
-const cloudinaryUploadImg = require("../utils/cloudinary")
+const { cloudinaryUploadImg } = require("../utils/cloudinary")
 
 const createBlogController = async (req, res) => {
   try {
@@ -249,14 +249,14 @@ const dislikeBlogController = async (req, res) => {
 
 const uploadImages = async (req, res) => {
   try {
-    const { id } = req.params
-    const blog = await blogModel.findById(id)
-    if (!blog) {
-      return res.status(404).send({
-        success: false,
-        message: "blog not found",
-      })
-    }
+    // const { id } = req.params
+    // const blog = await blogModel.findById(id)
+    // if (!blog) {
+    //   return res.status(404).send({
+    //     success: false,
+    //     message: "blog not found",
+    //   })
+    // }
     const uploader = (path) => cloudinaryUploadImg(path, "images")
     const urls = []
     const files = req.files
@@ -266,23 +266,33 @@ const uploadImages = async (req, res) => {
       urls.push(newPath)
       fs.unlinkSync(path)
     }
-    console.log(req.files)
-    const findBlog = await blogModel.findByIdAndUpdate(
-      id,
-      {
-        images: urls.map((file) => {
-          return file
-        }),
-      },
-      {
-        new: true,
-      }
-    )
+
+    const images = urls.map((file) => {
+      return file
+    })
+
     res.status(200).send({
       success: true,
       message: "upload blog image",
-      findBlog,
+      images,
     })
+
+    // const findBlog = await blogModel.findByIdAndUpdate(
+    //   id,
+    //   {
+    //     images: urls.map((file) => {
+    //       return file
+    //     }),
+    //   },
+    //   {
+    //     new: true,
+    //   }
+    // )
+    // res.status(200).send({
+    //   success: true,
+    //   message: "upload blog image",
+    //   findBlog,
+    // })
   } catch (error) {
     console.log(error)
     res.status(500).send({
